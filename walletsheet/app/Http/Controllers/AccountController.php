@@ -25,25 +25,31 @@ class AccountController extends Controller
     // 🔹 Filtrar cuentas según el parámetro recibido
     public function filterByType($filter)
     {
-        $userId = Auth::id();  // Usamos Auth::id() para obtener el ID del usuario autenticado
+        $userId = Auth::id();  // Obtener el ID del usuario autenticado
 
-        if ($filter == 1) {
+        if ($filter == 1 || $filter == 3) {
             // Retornar solo cuentas de débito
             $accounts = Account::where('user_id', $userId)
                 ->where('type', 'debit')
+                ->get();
+        } else if ($filter == 2) {
+            // Retornar cuentas de débito y crédito
+            $accounts = Account::where('user_id', $userId)
+                ->whereIn('type', ['debit', 'credit'])
                 ->get();
         } else {
             // Retornar todas las cuentas
             $accounts = Account::where('user_id', $userId)->get();
         }
 
-        // Verificamos si se encontraron cuentas
+        // Verificar si se encontraron cuentas
         if ($accounts->isEmpty()) {
             return response()->json(['message' => 'No cuentas encontradas para este filtro.'], 404);
         }
 
-        return response()->json($accounts);
+        return response()->json(["filter" => $filter, "data" => $accounts]);
     }
+
 
     // 🔹 Crear una nueva cuenta
     public function store(Request $request)
