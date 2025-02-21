@@ -37,9 +37,9 @@ class AccountController extends Controller
             $accounts = Account::where('user_id', $userId)
                 ->whereIn('type', ['debit', 'credit'])
                 ->get();
-        } else {
-            // Retornar todas las cuentas
-            $accounts = Account::where('user_id', $userId)->get();
+        } else if ($filter == 4) {
+            // Retornar ninguna
+            $accounts = [];
         }
 
         // Verificar si se encontraron cuentas
