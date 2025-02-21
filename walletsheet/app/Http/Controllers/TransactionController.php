@@ -41,7 +41,7 @@ class TransactionController extends Controller
 
         $transaction = Transaction::create([
             'type' => $request->type,
-            'amount' => $request->amount,
+            'amount' => ($request->type === 'income') ? $request->amount : $request->amount * (-1),
             'concept' => $request->concept,
             'transaction_date' => $request->transaction_date,
             'accounting_date' => $request->accounting_date,

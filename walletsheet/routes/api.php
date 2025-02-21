@@ -30,4 +30,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Ruta para obtener el saldo inicial y final de las cuentas de débito hasta el último día del mes anterior
     Route::get('/balances/{month}/{year}', [SheetController::class, 'getBalanceForMonth']);
+
+    Route::get('/month-data/{month}/{year}', [SheetController::class, 'getMonthData']);
+
 });
