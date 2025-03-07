@@ -103,21 +103,14 @@ class SheetController extends Controller
 
         foreach ($accounts as $account) {
             // Determinar los tipos de transacción a considerar según el tipo de cuenta
-            if ($account->type === 'debit') {
-                $transactionTypes = ['income', 'payment', 'expense'];
-            } else { // credit
-                $transactionTypes = ['income', 'payment'];
-            }
 
             // Saldo inicial: transacciones hasta el último día del mes anterior
             $initialBalance = Transaction::where('account_id', $account->id)
-                ->whereIn('type', $transactionTypes)
                 ->where('transaction_date', '<=', $lastDayOfPreviousMonth)
                 ->sum('amount');
 
             // Saldo final: transacciones hasta el último día del mes actual
             $finalBalance = Transaction::where('account_id', $account->id)
-                ->whereIn('type', $transactionTypes)
                 ->where('transaction_date', '<=', $lastDayOfCurrentMonth)
                 ->sum('amount');
 
@@ -134,63 +127,77 @@ class SheetController extends Controller
     }
 
     public function getMonthData(Request $request, $month, $year)
-{
-    // Validamos que el usuario esté autenticado
-    $userId = $request->user()->id;
+    {
+        // Validamos que el usuario esté autenticado
+        $userId = $request->user()->id;
 
-    // Fechas clave
-    $lastDayOfPreviousMonth = Carbon::create($year, $month, 1)->subDay();
-    $lastDayOfCurrentMonth = Carbon::create($year, $month, 1)->endOfMonth();
+        // Fechas clave
+        $lastDayOfPreviousMonth = Carbon::create($year, $month, 1)->subDay();
+        $lastDayOfCurrentMonth = Carbon::create($year, $month, 1)->endOfMonth();
 
-    // Obtener las transacciones del mes y año proporcionados
-    $transactions = Transaction::whereHas('account', function ($query) use ($userId) {
-        $query->where('user_id', $userId);
-    })
-        ->whereYear('transaction_date', $year)
-        ->whereMonth('transaction_date', $month)
-        ->with(['category', 'account'])
-        ->get();
+        // Obtener las transacciones del mes y año proporcionados
+        $transactions = Transaction::whereHas('account', function ($query) use ($userId) {
+            $query->where('user_id', $userId);
+        })
+            ->whereYear('accounting_date', $year)
+            ->whereMonth('accounting_date', $month)
+            ->with(['category', 'account'])
+            ->get();
 
-    // Sumatoria de los tipos de transacciones
-    $sumByType = $transactions->groupBy('type')->map(fn($group) => $group->sum('amount'));
+        // Sumatoria de los tipos de transacciones
+        $sumByType = $transactions->groupBy('type')->map(fn($group) => $group->sum('amount'));
 
-    // Obtener cuentas del usuario
-    $accounts = Account::where('user_id', $userId)->get();
+        // Obtener cuentas del usuario
+        $accounts = Account::where('user_id', $userId)->get();
 
-    // Calcular balances
-    $balances = $accounts->map(function ($account) use ($lastDayOfPreviousMonth, $lastDayOfCurrentMonth) {
-        $transactionTypes = ['income', 'payment', 'expense'];
+        // Calcular balances
+        $balances = $accounts->map(function ($account) use ($lastDayOfPreviousMonth, $lastDayOfCurrentMonth) {
+            $initialBalance = Transaction::where('account_id', $account->id)
+                ->where('accounting_date', '<=', $lastDayOfPreviousMonth)
+                ->sum('amount');
 
-        $initialBalance = Transaction::where('account_id', $account->id)
-            ->whereIn('type', $transactionTypes)
-            ->where('transaction_date', '<=', $lastDayOfPreviousMonth)
-            ->sum('amount');
+            $finalBalance = Transaction::where('account_id', $account->id)
+                ->where('accounting_date', '<=', $lastDayOfCurrentMonth)
+                ->sum('amount');
 
-        $finalBalance = Transaction::where('account_id', $account->id)
-            ->whereIn('type', $transactionTypes)
-            ->where('transaction_date', '<=', $lastDayOfCurrentMonth)
-            ->sum('amount');
 
-        return [
-            'id' => $account->id,
-            'name' => $account->bank_name,
-            'type' => $account->type,
-            'initial_balance' => $initialBalance,
-            'final_balance' => $finalBalance,
-        ];
-    });
+            $incomes = Transaction::where('account_id', $account->id)
+                ->where('type', 'income')
+                ->where('accounting_date', '>', $lastDayOfPreviousMonth)
+                ->where('accounting_date', '<=', $lastDayOfCurrentMonth)
+                ->sum('amount');
 
-    return response()->json([
-        'period' => $year . '-' . $month,
-        'message' => 'Consulta realizada correctamente.',
-        'transactions' => $transactions,
-        'sum_by_type' => [
-            'income' => $sumByType['income'] ?? 0,
-            'expense' => $sumByType['expense'] ?? 0,
-            'payment' => $sumByType['payment'] ?? 0,
-        ],
-        'balances' => $balances,
-    ]);
-}
+            $expenses = Transaction::where('account_id', $account->id)
+                ->where('type', '!=', 'income')
+                ->where('accounting_date', '>', $lastDayOfPreviousMonth)
+                ->where('accounting_date', '<=', $lastDayOfCurrentMonth)
+                ->sum('amount');
+            $balance = $incomes + $expenses;
 
+
+
+            return [
+                'id' => $account->id,
+                'name' => $account->bank_name,
+                'type' => $account->type,
+                'initial_balance' => $initialBalance,
+                'final_balance' => $finalBalance,
+                'incomes' => $incomes,
+                'expenses' => $expenses,
+                'balance' => $balance
+            ];
+        });
+
+        return response()->json([
+            'period' => $year . '-' . $month,
+            'message' => 'Consulta realizada correctamente.',
+            'transactions' => $transactions,
+            'sum_by_type' => [
+                'income' => $sumByType['income'] ?? 0,
+                'expense' => $sumByType['expense'] ?? 0,
+                'payment' => $sumByType['payment'] ?? 0,
+            ],
+            'balances' => $balances,
+        ]);
+    }
 }

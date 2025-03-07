@@ -37,16 +37,15 @@ class AccountController extends Controller
             $accounts = Account::where('user_id', $userId)
                 ->whereIn('type', ['debit', 'credit'])
                 ->get();
-        } else if ($filter == 3){
+        } else if ($filter == 3) {
             $debit = Account::where('user_id', $userId)
-                    ->where('type', 'debit')
-                    ->get();
+                ->where('type', 'debit')
+                ->get();
             $credit = Account::where('user_id', $userId)
-                    ->where('type', 'debit')
-                    ->get();
+                ->where('type', 'credit')
+                ->get();
             return response()->json(["filter" => $filter, "data" => ["debit" => $debit, "credit" => $credit]]);
-        }
-         else if ($filter == 4) {
+        } else if ($filter == 4) {
             // Retornar ninguna
             $accounts = [];
         }
