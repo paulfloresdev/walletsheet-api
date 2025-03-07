@@ -71,39 +71,33 @@ class TransactionController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $validator = Validator::make($request->all(), [
-            'type' => 'required|in:income,expense,payment',
-            'amount' => 'required|numeric|min:0.01',
-            'concept' => 'required|string|max:255',
-            'transaction_date' => 'required|date',
-            'accounting_date' => 'required|date',
-            'category_id' => 'required|exists:categories,id',
-            'account_id' => 'required|exists:accounts,id',
-            'place' => 'nullable|string|max:255',
-            'note' => 'nullable|string|max:500',
-        ]);
+        try {
+            $validator = Validator::make($request->all(), [
+                'type' => 'required|in:income,expense,payment',
+                'amount' => 'required|numeric|min:0.01',
+                'concept' => 'required|string|max:255',
+                'transaction_date' => 'required|date',
+                'accounting_date' => 'required|date',
+                'category_id' => 'required|exists:categories,id',
+                'account_id' => 'required|exists:accounts,id',
+                'place' => 'nullable|string|max:255',
+                'note' => 'nullable|string|max:500',
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 400);
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 400);
+            }
+
+            $transaction = Transaction::findOrFail($id);
+            $transaction->update($request->all());
+
+            return response()->json([
+                'message' => 'Transacción actualizada exitosamente.',
+                'transaction' => $transaction
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-
-        $transaction = Transaction::findOrFail($id);
-        $transaction->update([
-            'type' => $request->type,
-            'amount' => $request->amount,
-            'concept' => $request->concept,
-            'transaction_date' => $request->transaction_date,
-            'accounting_date' => $request->accounting_date,
-            'category_id' => $request->category_id,
-            'place' => $request->place,
-            'note' => $request->note,
-            'account_id' => $request->account_id,
-        ]);
-
-        return response()->json([
-            'message' => 'Transacción actualizada exitosamente.',
-            'transaction' => $transaction
-        ]);
     }
 
     /**

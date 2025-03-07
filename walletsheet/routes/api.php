@@ -22,6 +22,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::apiResource('transactions', TransactionController::class);
 
+    Route::post('transactions-update/{transaction}', [TransactionController::class, 'update']);
+
+    // Ruta para obtener los meses con transacciones realizadas por el usuario
+    Route::get('/transaction-months', [SheetController::class, 'getTransactionMonths']);
+
     // Ruta para obtener los meses con transacciones realizadas por el usuario
     Route::get('/transaction-months', [SheetController::class, 'getTransactionMonths']);
 
